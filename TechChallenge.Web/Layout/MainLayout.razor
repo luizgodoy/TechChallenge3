@@ -1,0 +1,35 @@
+﻿@using TechChallenge.Web.Pages
+@inject DialogService DialogService;
+
+@inherits LayoutComponentBase
+
+<div class="page">
+    <main>
+        <RadzenHeader>
+            <img src="/images/pos-tech-logo.png" />
+
+            <RadzenButton class="fiap-button" Text="Grupo" Icon="groups" Variant="Variant.Outlined" Click="OpenGroup"/>
+        </RadzenHeader>
+
+        <article>
+            @Body
+        </article>
+    </main>
+</div>
+
+<RadzenComponents />
+
+@code {
+    private async void OpenGroup()
+    {
+        await DialogService.OpenSideAsync<ModalGroup>(
+            "", 
+            new Dictionary<string, object>(), 
+            new SideDialogOptions() 
+            {
+                CloseDialogOnOverlayClick=true,
+                Position=DialogPosition.Right,
+                Width="500px"
+            });
+    }
+}

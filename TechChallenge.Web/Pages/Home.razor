@@ -1,0 +1,201 @@
+﻿@page "/"
+
+@using TechChallenge.Core.DTO
+@using TechChallenge.Web.Utils
+@using TechChallenge.Web.WebServices.Interfaces
+
+@inject IContactWebService ContactWebService
+@inject IStateWebService StateWebService
+@inject DialogService DialogService
+@inject NotificationService notificationService
+
+<PageTitle>Tech Challenge</PageTitle>
+
+<main>
+    <RadzenStack>
+        <RadzenRow JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+            <RadzenColumn>
+                <RadzenText Text="TechChallenge" TextStyle="TextStyle.H2" />
+                <RadzenText Text="Fase 2 - Azure DevOps e Servless" TextStyle="TextStyle.Body1" />
+            </RadzenColumn>
+
+            <RadzenButton Text="Adicionar Contato" Icon="add" ButtonStyle="ButtonStyle.Primary" Click="AddNewContact" />
+        </RadzenRow>
+
+        <RadzenDataGrid @ref=grid Data="Contacts" AllowFiltering=true AllowSorting=true
+                        LoadData="LoadData" IsLoading=IsLoading PageSize="4" AllowPaging=true
+                        PagerAlwaysVisible=true Count="Count">
+            <Columns>
+                <RadzenDataGridColumn TItem="ContactDto" Property="Name" Title="Nome">
+                    <Template Context="data">
+                        <RadzenText Text="@data.Name" />
+                    </Template>
+
+                    <EditTemplate Context="data">
+                        <RadzenTextBox @bind-Value="@data.Name" Name="Name" />
+                        <RadzenRequiredValidator Text="O nome é obrigatório" Component="Name" Popup="true" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="ContactDto" Property="Email" Title="E-mail">
+                    <Template Context="data">
+                        <RadzenText Text="@data.Email" />
+
+                    </Template>
+                    <EditTemplate Context="data">
+                        <RadzenTextBox @bind-Value="@data.Email" />
+                        <RadzenRequiredValidator Text="O nome é obrigatório" Component="Name" Popup="true" />
+
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="ContactDto" Property="Phone" Title="Número de Celular">
+                    <Template Context="data">
+                        <span>@AddPhoneMask(data.Phone)</span>
+                    </Template>
+
+                    <EditTemplate Context="data">
+                        <RadzenMask Mask="(**) *****-****" CharacterPattern="[0-9]" Placeholder="(00) 00000-0000"
+                                    Name="Phone" @bind-Value="@data.Phone" Change="_ => OnPhoneChange(data)" />
+                        <RadzenRequiredValidator Text="O telefone é obrigatório" Component="Phone" Popup="true" />
+                        <RadzenLengthValidator Min="10" Max="15" Text="O telefone deve ter 10 ou 11 dígitos" Component="Phone" Popup="true" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="ContactDto" Property="State.Name" Title="Estado">
+                    <Template Context="data">
+                        <RadzenText Text="@data.State.Name" />
+                    </Template>
+
+                    <EditTemplate Context="data">
+                        <RadzenTextBox @bind-Value="@data.State.Name" Name="State" Disabled=true />
+                        <RadzenRequiredValidator Text="O estado é obrigatório" Component="State" Popup="true" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="ContactDto" Title="Ações" Sortable=false Filterable=false Width="120px" TextAlign="TextAlign.Center">
+                    <Template Context="data">
+                        <RadzenButton Icon="edit" Click="_ => grid.EditRow(data)" />
+                        <RadzenButton Icon="delete" ButtonStyle="ButtonStyle.Danger" Click="_ => OpenDeleteModal(data)" />
+                    </Template>
+
+                    <EditTemplate Context="data">
+                        <RadzenButton Icon="save" Click="_ => UpdateContact(data)" />
+                        <RadzenButton Icon="cancel" ButtonStyle="ButtonStyle.Danger" Click="_ => grid.CancelEditRow(data)" />
+                    </EditTemplate>
+                </RadzenDataGridColumn>
+            </Columns>
+        </RadzenDataGrid>
+
+    </RadzenStack>
+</main>
+
+@code {
+    private IEnumerable<ContactDto> Contacts { get; set; }
+    private RadzenDataGrid<ContactDto> grid;
+    private bool IsLoading { get; set; }
+    private int Count;
+
+    private async Task LoadData(LoadDataArgs args)
+    {
+        IsLoading = true;
+        StateHasChanged();
+
+        var result = await ContactWebService.GetRadzenList(args);
+        Count = result.TotalRegister;
+        Contacts = result.List;
+
+        IsLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task AddNewContact()
+    {
+        await DialogService.OpenAsync<ModalNewContact>("Adicionar Contato", null);
+        await grid.Reload();
+    }
+
+    private string AddPhoneMask(string phone)
+    {
+        if (phone.Length == 11)
+            return $"({phone.Substring(0, 2)}) {phone.Substring(3, 5)}-{phone.Substring(7)}";
+
+
+        return $"({phone.Substring(0, 2)}) {phone.Substring(3, 4)}-{phone.Substring(6)}";
+    }
+
+    private async Task OpenDeleteModal(ContactDto contact)
+    {
+        var result = await DialogService.Confirm("Excluir Contato", $"Deseja realmente excluir o contato {contact.Name}?", new ConfirmOptions() { OkButtonText = "Sim", CancelButtonText = "Não" });
+
+        if (result == true)
+        {
+            IsLoading = true;
+            StateHasChanged();
+            try
+            {
+                await ContactWebService.Delete(contact.Id);
+                MessageScreen.ShowMessage(notificationService, "Contato", "Contato excluído com sucesso!", NotificationSeverity.Success);
+            }
+            catch (Exception e)
+            {
+                MessageScreen.ShowMessage(notificationService, "Contato", "Erro ao excluir contato", NotificationSeverity.Error);
+                Console.WriteLine(e.Message);
+            }
+            finally
+            {
+                await grid.Reload();
+                IsLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task UpdateContact(ContactDto contact)
+    {
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await ContactWebService.Update(contact);
+            MessageScreen.ShowMessage(notificationService, "Contato", "Contato atualizado com sucesso!", NotificationSeverity.Success);
+        }
+        catch (Exception e)
+        {
+            MessageScreen.ShowMessage(notificationService, "Contato", "Erro ao atualizar contato", NotificationSeverity.Error);
+            Console.WriteLine(e.Message);
+        }
+        finally
+        {
+            IsLoading = true;
+            await grid.Reload();
+            StateHasChanged();
+        }
+    }
+
+    private async void OnPhoneChange(ContactDto contact)
+    {
+        IsLoading = true;
+        StateHasChanged();
+
+        var phoneDDD = int.TryParse(contact.Phone.Substring(1, 2), out int ddd);
+
+        var response = await StateWebService.GetStateByDDD(ddd);
+
+        if (response != null)
+        {
+            contact.StateId = response.Id;
+            contact.State.Name = response.Name;
+            StateHasChanged();
+        }
+
+        else
+        {
+            MessageScreen.ShowMessage(notificationService, "Erro", "Não existe estado com esse código de telefone", NotificationSeverity.Error);
+        }
+
+        IsLoading = false;
+        StateHasChanged();
+    }
+}

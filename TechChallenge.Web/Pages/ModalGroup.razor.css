@@ -1,0 +1,50 @@
+﻿.modal-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+::deep .fiap-card {
+    width: 100%;
+    border: 1px solid var(--fiap-primary);
+    border-radius: 6px;
+    flex-wrap: nowrap;
+    padding: 22px 24px;
+
+}
+
+::deep .fiap-card .fiap-card-header {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+::deep .fiap-card .fiap-card-header img {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+::deep .fiap-card .fiap-card-header i.rzi {
+    font-size: 70px;
+    color: var(--fiap-primary);
+}
+
+
+::deep .rz-text-h5,
+::deep .rz-text-body1 {
+    color: white;
+}
+
+::deep .fiap-card-body .rz-link {
+    margin-top: 20px;
+}
+::deep .fiap-card-body .rzi {
+    width: 32px;
+    height: 32px;
+}

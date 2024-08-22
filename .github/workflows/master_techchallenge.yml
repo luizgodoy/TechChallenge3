@@ -1,0 +1,203 @@
+name: Build, test, and deploy ApiFrontTechChallenge and FrontEnd to Azure Web App
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.x'
+          include-prerelease: true
+
+      - name: Build API with dotnet
+        run: dotnet build --configuration Release
+
+  unit-test:
+    runs-on: windows-latest
+    needs: build
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.x'
+          include-prerelease: true
+
+      - name: Test API with dotnet
+        run: dotnet test ./TechChallenge.Domain.UnitTest/TechChallenge.Domain.UnitTest.csproj --configuration Release
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: build
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.x'
+          include-prerelease: true
+
+      - name: Test API with dotnet
+        run: dotnet test ./TechChallenge.Domain.IntegrationTest/TechChallenge.Domain.IntegrationTest.csproj --configuration Release
+
+  build-push-api-to-dockerhub:
+    runs-on: ubuntu-latest
+    needs: [unit-test, integration-test]
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Build and push API image
+        run: |
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/api-front-tech-challenge:latest -f ./TechChallenge.API.dockerfile .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/api-front-tech-challenge:latest
+
+  build-push-front-to-dockerhub:
+    runs-on: ubuntu-latest
+    needs: [unit-test, integration-test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Build and push FrontEnd image
+        run: |
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/front-tech-challenge:latest -f ./TechChallenge.Web.dockerfile .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/front-tech-challenge:latest
+
+  publish-api-azure-pack:
+    runs-on: ubuntu-latest
+    needs: [unit-test, integration-test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.x'
+          include-prerelease: true
+
+      - name: Publish API with dotnet
+        run: dotnet publish ./TechChallenge.API/TechChallenge.API.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp_api
+
+      - name: Upload API artifact for deployment job
+        uses: actions/upload-artifact@v3
+        with:
+          name: .net-api-app
+          path: ${{env.DOTNET_ROOT}}/myapp_api
+
+  publish-frontend-azure-pack:
+    runs-on: ubuntu-latest
+    needs: [unit-test, integration-test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.x'
+          include-prerelease: true
+
+      - name: Publish FrontEnd with dotnet
+        run: dotnet publish ./TechChallenge.Web/TechChallenge.Web.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
+
+      - name: Upload FrontEnd artifact for deployment job
+        uses: actions/upload-artifact@v3
+        with:
+          name: .net-frontend-app
+          path: ${{env.DOTNET_ROOT}}/myapp
+
+  deploy-api-azure:
+    runs-on: ubuntu-latest
+    needs: publish-api-azure-pack
+    environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    permissions:
+      id-token: write # This is required for requesting the JWT
+
+    steps:
+      - name: Download API artifact from build job
+        uses: actions/download-artifact@v3
+        with:
+          name: .net-api-app
+      
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_A386FC10D38E4931ABC2F248748DD10F }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_44BFBD160052491EBF92C53C21E84E66 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_10DC72DB008E41A9AFAC327CD10E7564 }}
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'ApiFrontTechChallenge'
+          slot-name: 'Production'
+          package: .
+
+  deploy-frontend-azure:
+    runs-on: ubuntu-latest
+    needs: publish-frontend-azure-pack
+    environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    permissions:
+      id-token: write # This is required for requesting the JWT
+
+    steps:
+      - name: Download FrontEnd artifact from build job
+        uses: actions/download-artifact@v3
+        with:
+          name: .net-frontend-app
+      
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_0FBFD6DD17DB41EA8130AFD5CD6586CD }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_369D85363AFA41E4B90EA57537229AAB }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_158C9A2E12704974A9D07CF6BC36B9E9 }}
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'TechChallenge2'
+          slot-name: 'Production'
+          package: .

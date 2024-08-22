@@ -1,0 +1,21 @@
+.page {
+    background-color: #161616;
+    height: 100vh;
+}
+.page article {
+
+    margin-top: 80px;
+}
+
+::deep .rz-header.fixed {
+    height: 80px;
+    background-color: black;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+}
+
+::deep .rz-header.fixed img {
+    height: 19px
+}

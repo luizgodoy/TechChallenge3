@@ -1,0 +1,61 @@
+services:
+  sqlserver:
+    container_name: sqlserver
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - "1433:1433"
+    environment:
+      SA_PASSWORD: "techChallenge@outra"
+      ACCEPT_EULA: "Y"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    command: >
+      bash -c "
+      /opt/mssql/bin/sqlservr & sleep 30 && 
+      /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P techChallenge@outra -i /docker-entrypoint-initdb.d/init.sql && 
+      wait
+      "
+    networks:
+      - techchallenge-network
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - techchallenge-network
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - techchallenge-network
+
+  webapi:
+    build:
+      context: ..
+      dockerfile: devops/Dockerfile
+    ports:
+      - "18080:8080" # Porta do container para acesso externo 
+      - "18081:8081"
+    depends_on:
+      - sqlserver
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__SqlConnection: "Server=sqlserver,1433;Database=TechChallenge2;User ID=tech_challenge;Password=tech@2024;Trusted_Connection=False; TrustServerCertificate=True;"
+    networks:
+      - techchallenge-network
+
+volumes:
+  grafana-storage:
+
+networks:
+  techchallenge-network:
+    driver: bridge

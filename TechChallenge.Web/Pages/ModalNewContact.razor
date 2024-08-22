@@ -1,0 +1,96 @@
+﻿@using TechChallenge.Core.DTO
+@using TechChallenge.Web.Utils
+@using TechChallenge.Web.WebServices.Interfaces
+
+@inject DialogService DialogService
+@inject IContactWebService ContactWebService
+@inject IStateWebService StateWebService
+@inject NotificationService notificationService
+
+<div>
+    <EditForm OnValidSubmit="Submit" EditContext="_editContext">
+        <DataAnnotationsValidator />
+        
+        <RadzenStack Gap="16">
+            <RadzenTextBox @bind-Value="@Contact.Name" Placeholder="Nome" />
+            <ValidationMessage For="() => Contact.Name" />
+
+            <RadzenTextBox @bind-Value="@Contact.Email" Placeholder="Email" />
+            <ValidationMessage For="() => Contact.Email" />
+
+            <RadzenMask Mask="(**) *****-****" CharacterPattern="[0-9]" Placeholder="(00) 00000-0000" @bind-Value="@Contact.Phone" Change="OnPhoneChange" />
+            <ValidationMessage For="() => Contact.Phone" />
+
+            <RadzenTextBox @bind-Value="@Contact.State.Name" Placeholder="Estado" Disabled=true />
+            <ValidationMessage For="() => Contact.StateId" />
+
+            <RadzenRow JustifyContent="JustifyContent.Center" AlignItems="AlignItems.Center" Gap="16">
+                <RadzenButton ButtonType="ButtonType.Submit" Text="Salvar" Disabled="IsLoading" />
+                <RadzenButton Text="Cancelar" Variant=Variant.Outlined Click="@(() => DialogService.Close())" />
+            </RadzenRow>
+        </RadzenStack>
+    </EditForm>
+</div>
+
+@code {
+    private ContactDto Contact { get; set; } = new ContactDto();
+    private bool IsLoading { get; set; }
+
+    private EditContext _editContext;
+
+    protected override void OnInitialized()
+    {
+        _editContext = new EditContext(Contact);
+
+        Contact.State = new();
+    }
+
+
+    private async Task Submit()
+    {
+        IsLoading = true;
+        StateHasChanged();
+
+        var result = await ContactWebService.AddContact(Contact);
+
+        if(result != null)
+        {
+            MessageScreen.ShowMessage(notificationService, "Contato", "Contato salvo com sucesso!", NotificationSeverity.Success);
+            DialogService.Close(true);
+        }
+
+        else
+        {
+            MessageScreen.ShowMessage(notificationService, "Contato", "Erro ao salvar contato!", NotificationSeverity.Error);
+        }
+
+        IsLoading = false;
+        StateHasChanged();
+    }
+
+    private async void OnPhoneChange()
+    {
+        IsLoading = true;
+        StateHasChanged();
+
+        var phoneDDD = int.TryParse(Contact.Phone.Substring(1, 2), out int ddd);
+
+        var response = await StateWebService.GetStateByDDD(ddd);
+
+        if (response != null)
+        {
+            Contact.StateId = response.Id;
+            Contact.State.Name = response.Name;
+            StateHasChanged();
+        }
+
+        else
+        {
+            MessageScreen.ShowMessage(notificationService, "Erro", "Não existe estado com esse código de telefone", NotificationSeverity.Error);
+
+        }
+
+        IsLoading = false;
+        StateHasChanged();
+    }
+}

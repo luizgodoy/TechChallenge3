@@ -1,0 +1,80 @@
+﻿main {
+    padding: 40px;
+    overflow: hidden;
+}
+
+main::after {
+    content: "";
+    background-image: url(../images/effects-top.png);
+    background-repeat: no-repeat;
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 160px;    
+    right: 0;
+}
+
+::deep .rz-text-h2 {
+    color: var(--fiap-primary);
+    font-weight: 100;
+}
+
+::deep .rz-text-body1 {
+    color:white;
+    text-transform: uppercase;
+}
+
+::deep .rz-data-grid {
+    margin-top: 20px;
+    position: relative;
+    z-index: 20;
+    max-height: 60vh;
+}
+
+    ::deep .rz-data-grid ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    ::deep .rz-data-grid ::-webkit-scrollbar-button {
+        width: 0px;
+        height: 0px;
+    }
+
+    ::deep .rz-data-grid ::-webkit-scrollbar-thumb {
+        background: var(--fiap-primary);
+        border: 0px none #ffffff;
+        border-radius: 50px;
+    }
+
+        ::deep .rz-data-grid ::-webkit-scrollbar-thumb:hover {
+            background: var(--fiap-primary-dark);
+        }
+
+        ::deep .rz-data-grid ::-webkit-scrollbar-thumb:active {
+            background: var(--fiap-primary-darker);
+        }
+
+    ::deep .rz-data-grid ::-webkit-scrollbar-track {
+        background: #666666;
+        border: 0px none #ffffff;
+        border-radius: 50px;
+    }
+
+        ::deep .rz-data-grid ::-webkit-scrollbar-track:hover {
+            background: #666666;
+        }
+
+        ::deep .rz-data-grid ::-webkit-scrollbar-track:active {
+            background: #333333;
+        }
+
+    ::deep .rz-data-grid ::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+
+::deep .rz-button {
+    position: relative;
+    z-index: 10;
+}
