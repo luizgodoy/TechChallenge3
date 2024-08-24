@@ -64,6 +64,18 @@ services:
     networks:
       - techchallenge-network
 
+  rabbitmq-exporter:
+    image: kbudde/rabbitmq-exporter:latest
+    container_name: rabbitmq-exporter
+    environment:
+      RABBIT_URL: http://guest:guest@rabbitmq:15672
+    ports:
+      - "9419:9419"  # Port for RabbitMQ metrics
+    networks:
+      - techchallenge-network      
+    depends_on:
+      - rabbitmq
+
 volumes:
   grafana-storage:
 
