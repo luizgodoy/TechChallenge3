@@ -53,6 +53,17 @@ services:
     networks:
       - techchallenge-network
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672" # Porta do Potocolo AMQP
+      - "15672:15672" # Porta do Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - techchallenge-network
+
 volumes:
   grafana-storage:
 
