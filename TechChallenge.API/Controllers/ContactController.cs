@@ -116,7 +116,7 @@ namespace TechChallenge.API.Controllers
 
         [HttpPatch]
         [Route("update-contact")]
-        public async Task<IActionResult> UpdateUser([FromBody] ContactDto dto)
+        public async Task<IActionResult> UpdateContact([FromBody] ContactDto dto)
         {
             //TODO: fluent validion
             var contact = await _contactService.GetById(dto.Id);
