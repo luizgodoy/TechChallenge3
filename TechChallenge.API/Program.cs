@@ -1,9 +1,12 @@
 using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
+using MassTransit;
+using MassTransit.Transports.Fabric;
 using Prometheus;
 using TechChallenge.API.AutoMapper;
 using TechChallenge.API.Configurations;
+using TechChallenge.Contract.Contact;
 using TechChallenge.Data.Context;
 using TechChallenge.Data.Extensions;
 
@@ -20,6 +23,52 @@ builder.Services.AddAutoMapper(typeof(MapperProfile), typeof(MapperProfile));
 
 builder.Services.ResolveDependencies();
 builder.Services.AddControllers();
+
+builder.Services.AddMassTransit(x =>
+{
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host("localhost", "/", h =>
+        {
+            h.Username("guest");  
+            h.Password("guest"); 
+        });
+        
+        cfg.Message<AddContactMessage>(p => 
+        {
+            p.SetEntityName("tech.challenge.direct");
+        });
+
+        cfg.Publish<AddContactMessage>(p =>
+        {
+            p.ExchangeType = "direct";
+        });
+
+        cfg.Message<EditContactMessage>(p => 
+        {
+            p.SetEntityName("tech.challenge.direct");
+        });
+
+        cfg.Publish<EditContactMessage>(p =>
+        {
+            p.ExchangeType = "direct";
+        });
+
+        cfg.Message<DeleteContactMessage>(p => 
+        {
+            p.SetEntityName("tech.challenge.direct");
+        });
+
+        cfg.Publish<DeleteContactMessage>(p =>
+        {
+            p.ExchangeType = "direct";
+        });
+
+
+        
+    });
+});
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -37,8 +86,13 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "TechChallenge 3 V1");
+    });
+
 }
+
 
 //Executa as migrações do banco de dados
 app.MigrateDatabase();

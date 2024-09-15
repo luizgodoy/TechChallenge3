@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
 using FluentValidation;
+using MassTransit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Radzen;
+using TechChallenge.Contract.Contact;
 using TechChallenge.Core.DomainExceptions;
 using TechChallenge.Core.DTO;
 using TechChallenge.Data.Repository;
@@ -19,14 +21,15 @@ namespace TechChallenge.API.Controllers
     {
         private readonly IContactService _contactService;
         private readonly IStateService _stateService;
-        
         private readonly IMapper _mapper;
+        private readonly IBus _eventBus;
 
-        public ContactController(IContactService contactService, IMapper mapper, IStateService stateService)
+        public ContactController(IContactService contactService, IMapper mapper, IStateService stateService, IBus eventBus)
         {
             _mapper = mapper;
             _contactService = contactService;
             _stateService = stateService;
+            _eventBus = eventBus;
         }
 
         [HttpGet]
@@ -88,7 +91,9 @@ namespace TechChallenge.API.Controllers
             try
             {
                 contact = await FillState(contact);
-                await _contactService.Create(_mapper.Map<Contact>(contact));
+                var addContactMessage = _mapper.Map<AddContactMessage>(contact);
+
+                await _eventBus.Publish(addContactMessage, context => context.SetRoutingKey("add.contact"));
 
                 return Ok(contact);
             }
@@ -109,7 +114,12 @@ namespace TechChallenge.API.Controllers
                 return NotFound();
             }
 
-            await _contactService.Delete(id);
+            var deleteContactMessage = new DeleteContactMessage
+            {
+                ContactId = id
+            };
+            
+            await _eventBus.Publish(deleteContactMessage, context => context.SetRoutingKey("delete.contact"));
 
             return Ok();
         }
@@ -128,9 +138,8 @@ namespace TechChallenge.API.Controllers
             try
             {
                 dto = await FillState(dto);
-
-                var entity = _mapper.Map<Contact>(dto);
-                await _contactService.Update(entity);
+                var updateContactMessage = _mapper.Map<EditContactMessage>(dto);
+                await _eventBus.Publish(updateContactMessage,context => context.SetRoutingKey("update.contact"));
 
             }
             catch (Exception e)
